@@ -6,6 +6,7 @@ import chardet
 from bs4 import BeautifulSoup
 from lxml.cssselect import CSSSelector
 import urllib.request
+import re
 
 #url = 'https://mynichinoken.jp/mynichinoken/index.php'
 url = 'https://mynichinoken.jp/mynichinoken/login/mns0101_01.php'
@@ -37,13 +38,20 @@ def extract_summary_score(score_summary_table):
     score_summary_tr = score_summary_table.cssselect('tbody > tr')[5]
     score_summary_td = score_summary_tr.cssselect('td')[0]
     print(lxml.html.tostring(score_summary_td, encoding='unicode'))
-    for span in score_summary_td.cssselect('span'):
-        print(lxml.html.tostring(span, encoding='unicode'))
-    total = score_summary_td.findall('span')[0].text
-    total_wrong_answer = lxml.html.tostring(score_summary_td.findall('span')[1], encoding='unicode')
-    print(total,total_wrong_answer )
-    c = score_summary_td.findall('span')[1].getchildren
 
+    score_r = re.compile('(\d+)点')
+    summary_scores = score_summary_td.cssselect('span')
+    # <span class="ore">【　70点　】</span> -> 70
+    summary_score = score_r.findall(summary_scores[0].text)[0]
+
+    # <span class="sgo1"><br>誤答(×)47点<br>無答(レ)33点</span> -> 47
+    wrong_and_noanswer = lxml.html.tostring(summary_scores[1], encoding='unicode')
+    summary_wrong_score = score_r.findall(wrong_and_noanswer)[0]
+
+    # <span class="sgo1"><br>誤答(×)47点<br>無答(レ)33点</span> -> 35
+    summary_noanswer = score_r.findall(wrong_and_noanswer)[1]
+
+    print(summary_score, summary_wrong_score, summary_noanswer)
 
 def extract_score(tr):
     tds = tr.cssselect('td')
