@@ -2,17 +2,30 @@ import sys
 import os
 import requests
 import lxml.html
-import chardet
 from bs4 import BeautifulSoup
 from lxml.cssselect import CSSSelector
 import urllib.request
 import re
+import xlwt
+from enum import Enum
+import itertools
+
+class Subject(Enum):
+    K = 0 # 国語
+    M = 1 # 算数
+    R = 2 # 理科
+    S = 3 # 社会
+
+    def to_japanese(self):
+        japanese = ['国語', '算数', '理科', '社会']
+        return japanese[self.value]
 
 #url = 'https://mynichinoken.jp/mynichinoken/index.php'
 url = 'https://mynichinoken.jp/mynichinoken/login/mns0101_01.php'
 student_url = 'https://mynichinoken.jp/mynichinoken/student/index.php'
-#curri_te_url = 'https://mynichinoken.jp/mynichinoken/student/m04/mns0401_02f.php?exam_date=20170219&exam_knd=N&yesr_val=2017&subject=K&odr=&type=&crct=&saiten=2'
-curri_te_url = 'https://mynichinoken.jp/mynichinoken/student/m04/mns0401_02f.php?exam_date=20170219&exam_knd=N&yesr_val=2017&subject=M&odr=&type=&crct=&saiten=2'
+xls_file = 'C:\\tmp\\sample.xls'
+
+test_dates = [20170219]
 
 def main():
   session = requests.Session()
@@ -20,19 +33,27 @@ def main():
   data = {'id':'N1207585','passwd':'keigo0604'}
   session.post(url,headers=headers, data=data)
 
-  s = session.get(curri_te_url)
-  root = lxml.html.fromstring(s.content)
+  for test_date, subj in itertools.product(test_dates, Subject):
+    curri_te_url = 'https://mynichinoken.jp/mynichinoken/student/m04/mns0401_02f.php?exam_date=' + str(test_date) + '&exam_knd=N&yesr_val=2017&subject=' + subj.name + '&odr=&type=&crct=&saiten=2'
+    print(curri_te_url)
 
-  # Fetch summary table
-  score_summary_table = root.cssselect('html > body > table')[1]
-  extract_summary_score(score_summary_table)
+    s = session.get(curri_te_url)
+    root = lxml.html.fromstring(s.content)
 
-  # Fetch score table
-  score_table = root.cssselect('html > body > table')[2]
-  each_score_tables = score_table.cssselect('tbody > tr > td > table')
-  trs = each_score_tables[1].cssselect('tr')
-  for tr in trs:
-    extract_score(tr)
+    # Fetch summary table
+    score_summary_table = root.cssselect('html > body > table')[1]
+    summary_score, summary_wrong_score, summary_noanswer = extract_summary_score(score_summary_table)
+    print(summary_score, summary_wrong_score, summary_noanswer)
+
+    # Fetch score table
+    score_table = root.cssselect('html > body > table')[2]
+    each_score_tables = score_table.cssselect('tbody > tr > td > table')
+    trs = each_score_tables[1].cssselect('tr')
+    answers = []
+    for tr in trs:
+      question_num, question_ctx, answer, correct_answer_per, wrong_answer_per, none_answer_per = extract_score(tr)
+      print(question_num, question_ctx, answer, correct_answer_per,wrong_answer_per,none_answer_per)
+      answers.append([question_num, question_ctx, answer, correct_answer_per, wrong_answer_per, none_answer_per])
 
 def extract_summary_score(score_summary_table):
     score_summary_tr = score_summary_table.cssselect('tbody > tr')[5]
@@ -51,7 +72,7 @@ def extract_summary_score(score_summary_table):
     # <span class="sgo1"><br>誤答(×)47点<br>無答(レ)33点</span> -> 35
     summary_noanswer = score_r.findall(wrong_and_noanswer)[1]
 
-    print(summary_score, summary_wrong_score, summary_noanswer)
+    return [summary_score, summary_wrong_score, summary_noanswer]
 
 def extract_score(tr):
     tds = tr.cssselect('td')
@@ -62,12 +83,9 @@ def extract_score(tr):
       correct_answer_per = tds[4].cssselect('font')[0].text
       wrong_answer_per = tds[5].cssselect('font')[0].text
       none_answer_per = tds[6].cssselect('font')[0].text
-
-
-      print(question_num, question_ctx, answer, correct_answer_per,wrong_answer_per,none_answer_per )
-#    for td in tds:
-#      print(lxml.html.tostring(td, encoding='unicode'))
-
+      return [question_num, question_ctx, answer, correct_answer_per,wrong_answer_per,none_answer_per]
+    else:
+      return['','','','','','']
 
 
 if __name__ == '__main__':
