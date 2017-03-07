@@ -25,7 +25,7 @@ url = 'https://mynichinoken.jp/mynichinoken/login/mns0101_01.php'
 student_url = 'https://mynichinoken.jp/mynichinoken/student/index.php'
 xls_file = 'C:\\tmp\\sample.xls'
 
-test_dates = [20170219]
+test_dates = [20170305]
 
 def main():
   session = requests.Session()
@@ -33,9 +33,18 @@ def main():
   data = {'id':'N1207585','passwd':'keigo0604'}
   session.post(url,headers=headers, data=data)
 
+  book = xlwt.Workbook()
+
   for test_date, subj in itertools.product(test_dates, Subject):
     curri_te_url = 'https://mynichinoken.jp/mynichinoken/student/m04/mns0401_02f.php?exam_date=' + str(test_date) + '&exam_knd=N&yesr_val=2017&subject=' + subj.name + '&odr=&type=&crct=&saiten=2'
     print(curri_te_url)
+    sheet_name = str(test_date) + '-' + subj.to_japanese()
+    print('Create sheet..' + sheet_name)
+    sheet = book.add_sheet(sheet_name)
+
+    sheet.write(0, 0, test_date)
+    sheet.write(0, 1, subj.to_japanese())
+    sheet.write(0, 2, curri_te_url)
 
     s = session.get(curri_te_url)
     root = lxml.html.fromstring(s.content)
@@ -44,6 +53,10 @@ def main():
     score_summary_table = root.cssselect('html > body > table')[1]
     summary_score, summary_wrong_score, summary_noanswer = extract_summary_score(score_summary_table)
     print(summary_score, summary_wrong_score, summary_noanswer)
+
+    sheet.write(2, 0, summary_score)
+    sheet.write(2, 1, summary_wrong_score)
+    sheet.write(2, 2, summary_noanswer)
 
     # Fetch score table
     score_table = root.cssselect('html > body > table')[2]
@@ -54,6 +67,16 @@ def main():
       question_num, question_ctx, answer, correct_answer_per, wrong_answer_per, none_answer_per = extract_score(tr)
       print(question_num, question_ctx, answer, correct_answer_per,wrong_answer_per,none_answer_per)
       answers.append([question_num, question_ctx, answer, correct_answer_per, wrong_answer_per, none_answer_per])
+
+    for i in range(len(answers)):
+        sheet.write(i+3, 0, answers[i][0])
+        sheet.write(i+3, 1, answers[i][1])
+        sheet.write(i+3, 2, answers[i][2])
+        sheet.write(i+3, 3, answers[i][3])
+        sheet.write(i+3, 4, answers[i][4])
+        sheet.write(i+3, 5, answers[i][5])
+
+    book.save(xls_file)
 
 def extract_summary_score(score_summary_table):
     score_summary_tr = score_summary_table.cssselect('tbody > tr')[5]
