@@ -25,7 +25,7 @@ url = 'https://mynichinoken.jp/mynichinoken/login/mns0101_01.php'
 student_url = 'https://mynichinoken.jp/mynichinoken/student/index.php'
 xls_file = 'C:\\tmp\\sample.xls'
 
-test_dates = [20170305]
+test_dates = [20170312,20170319,20170326]
 
 def main():
   session = requests.Session()
